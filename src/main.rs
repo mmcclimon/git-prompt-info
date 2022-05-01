@@ -18,7 +18,7 @@ fn main() {
         .get_matches();
 
     let out = Command::new("git")
-        .args(&["status", "--branch", "--porcelain=v2"])
+        .args(&["--no-optional-locks", "status", "--branch", "--porcelain=v2"])
         .output();
 
     if out.is_err() {
