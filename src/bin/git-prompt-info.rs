@@ -1,4 +1,6 @@
 use clap::App;
+use std::ffi::OsStr;
+use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
@@ -48,8 +50,48 @@ fn main() {
     }
   }
 
+  let is_weird = is_weird();
+  if is_weird.is_none() {
+    println!("0");
+    return;
+  }
+
   let prep = if head == "(detached)" { "at" } else { "on" };
   let branch = if head == "(detached)" { sha } else { head };
 
-  println!("1 {} {} {}", prep, branch, if is_dirty { 1 } else { 0 });
+  println!(
+    "1 {} {} {} {}",
+    prep,
+    branch,
+    if is_dirty { 1 } else { 0 },
+    if is_weird.unwrap() { 1 } else { 0 },
+  );
+}
+
+fn is_weird() -> Option<bool> {
+  let out = Command::new("git")
+    .args(&["rev-parse", "--git-dir"])
+    .output();
+
+  if out.is_err() || !out.as_ref().unwrap().status.success() {
+    return None;
+  }
+
+  use std::os::unix::ffi::OsStrExt;
+  let raw = out.unwrap().stdout;
+  let git_dir = PathBuf::from(OsStr::from_bytes(&raw[..raw.len() - 1]));
+
+  for f in &[
+    "rebase-apply",
+    "rebase-merge",
+    "MERGE_HEAD",
+    "CHERRY_PICK_HEAD",
+    "REVERT_HEAD",
+  ] {
+    if git_dir.join(f).exists() {
+      return Some(true);
+    }
+  }
+
+  Some(false)
 }
