@@ -1,7 +1,7 @@
 use clap::App;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{exit, Command};
 
 fn main() {
   App::new("git-prompt-info").get_matches();
@@ -15,17 +15,11 @@ fn main() {
     ])
     .output();
 
-  if out.is_err() {
-    println!("0");
-    return;
+  if out.is_err() || !out.as_ref().unwrap().status.success() {
+    bail();
   }
 
   let out = out.unwrap();
-
-  if !out.status.success() {
-    println!("0");
-    return;
-  }
 
   let mut sha = "??";
   let mut head = "??";
@@ -51,10 +45,6 @@ fn main() {
   }
 
   let is_weird = is_weird();
-  if is_weird.is_none() {
-    println!("0");
-    return;
-  }
 
   let prep = if head == "(detached)" { "at" } else { "on" };
   let branch = if head == "(detached)" { sha } else { head };
@@ -64,17 +54,17 @@ fn main() {
     prep,
     branch,
     if is_dirty { 1 } else { 0 },
-    if is_weird.unwrap() { 1 } else { 0 },
+    if is_weird { 1 } else { 0 },
   );
 }
 
-fn is_weird() -> Option<bool> {
+fn is_weird() -> bool {
   let out = Command::new("git")
     .args(&["rev-parse", "--git-dir"])
     .output();
 
   if out.is_err() || !out.as_ref().unwrap().status.success() {
-    return None;
+    bail();
   }
 
   use std::os::unix::ffi::OsStrExt;
@@ -89,9 +79,14 @@ fn is_weird() -> Option<bool> {
     "REVERT_HEAD",
   ] {
     if git_dir.join(f).exists() {
-      return Some(true);
+      return true;
     }
   }
 
-  Some(false)
+  false
+}
+
+fn bail() -> ! {
+  println!("0");
+  exit(0);
 }
