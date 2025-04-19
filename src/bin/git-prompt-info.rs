@@ -1,3 +1,4 @@
+use clap::{App, Arg};
 use std::io;
 use std::process::{exit, Command, Output};
 use termcolor::{BufferWriter, ColorChoice, WriteColor};
@@ -11,16 +12,27 @@ struct PromptInfo {
 }
 
 fn main() -> Result<(), std::io::Error> {
+  let matches = App::new("git-prompt-info")
+    .arg(
+      Arg::with_name("color")
+        .long("color")
+        .short("c")
+        .help("print colors, not numbers"),
+    )
+    .get_matches();
+
   let info = PromptInfo::new();
-  println!("{}", info);
+
+  if !matches.is_present("color") {
+    println!("{}", info);
+    return Ok(());
+  }
 
   let bufwtr = BufferWriter::stdout(ColorChoice::Always);
   let mut buffer = bufwtr.buffer();
 
   info.write_to(&mut buffer)?;
-  bufwtr.print(&buffer)?;
-
-  Ok(())
+  bufwtr.print(&buffer)
 }
 
 impl PromptInfo {
